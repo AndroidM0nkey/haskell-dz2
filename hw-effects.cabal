@@ -1,0 +1,64 @@
+cabal-version:      2.4
+name:               hw-effects
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             AndroidM0nkey
+maintainer:         stepanovprogramming@gmail.com
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+executable hw-effects
+    main-is:          Main.hs
+    other-modules:    Bank.Handle
+    build-depends:
+      base
+      , mtl
+      , hw-effects
+      , containers
+      , transformers
+    hs-source-dirs:   app
+    default-language: Haskell2010
+
+library
+    exposed-modules:  Bank, Bank.Error
+    build-depends:    base ^>=4.16
+    hs-source-dirs:   src
+    default-language: Haskell2010
+
+library pure-bank
+    exposed-modules:  Bank.Pure
+    other-modules:    Data.Accounts
+    build-depends:
+      base
+      , mtl
+      , hw-effects
+      , containers
+      , transformers
+    hs-source-dirs:   pure-bank
+    default-language: Haskell2010
+
+test-suite hw-effects-test
+    type:             exitcode-stdio-1.0
+    main-is:          Spec.hs
+    build-depends:
+      base
+      , mtl
+      , hw-effects
+      , pure-bank
+      , QuickCheck
+    hs-source-dirs:   test
+    default-language: Haskell2010
