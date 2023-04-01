@@ -79,4 +79,7 @@ class (Monad m, Monoid b, Eq b, Ord b) => MonadBank a b m | m -> a, m -> b where
 -- (0.5 балла) Найдите ошибку в реализации `transfer` и исправьте её.
 
 transfer :: MonadBank a b m => a -> b -> a -> m ()
-transfer from amount to = withdraw from amount >>= (\x -> deposit to amount)
+transfer from amount to = do
+  withdraw from amount
+  deposit to amount
+
