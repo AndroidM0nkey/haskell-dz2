@@ -13,24 +13,13 @@ type Accounts = IntMap
 -- | Result of operations
 type Result = Either BankError
 
--- (1 балл) Реализуйте вспомогательные чистые функции @nextAccount@,
--- @getBalance@ и @modifyBalance@.
--- Функции из модуля @Data.IntMap.Strict@ можно вызывать с префиксом @M.@:
--- @
---    M.elems . M.delete 1 . M.insert 0 "wow"
--- @
-maxInt = 4294967295
-
 newAccount :: Accounts b -> Account
 -- ^ Finds fresh account name
-newAccount mp = if M.null mp then 0
-                             else let x = fst(M.findMax mp) in case x of
-                                                            maxInt -> error "NoMoreKeysInMap"
-                                                            _ -> x + 1
+newAccount state = if M.null state then 0 else fst(M.findMax state) + 1
 
 balance :: Account -> Accounts b -> Result b
 -- ^ Gets balance of an account, if it exists
-balance acc mp = let x = M.lookup acc mp in case x of
+balance acc state = let x = M.lookup acc state in case x of
                                           Just a -> Right a
                                           Nothing -> Left CantFindAccount
 
@@ -43,8 +32,8 @@ modifyBalance ::
   Accounts b ->
   -- | Result of action
   Result (Accounts b)
-modifyBalance acc act mp = let x = M.lookup acc mp in case x of
+modifyBalance acc act state = let x = M.lookup acc state in case x of
                                           Just val -> let k = act val in case k of
                                                                               Left err -> Left err
-                                                                              Right a -> Right $ M.adjust (\x -> a) acc mp
+                                                                              Right a -> Right $ M.adjust (\x -> a) acc state
                                           Nothing -> Left CantFindAccount
