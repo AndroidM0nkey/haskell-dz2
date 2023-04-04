@@ -75,35 +75,58 @@ server1 ref = processNewAccount ref
 
               processDeposit ref acc amount = do
                 iostate <- liftIO $ readIORef ref
-                let s = runStateT (runPureBank $ depositHttp acc amount) iostate in case s of
-                  --TODO: добавить обработку ошибки
-                  Right rs -> do
-                    tmp <- liftIO $ writeIORef ref (snd rs)
-                    return $ Ans "success"
+                let oldState = iostate
+                let s = runStateT (runPureBank $ depositHttp acc amount) iostate
+                case s of
+                    Right rs -> do
+                      liftIO $ writeIORef ref (snd rs)
+                      let newState = snd rs
+                      if oldState == newState
+                        then return $ Ans "fail"
+                        else return $ Ans "success"
 
               processWithdraw ref acc amount = do
                 iostate <- liftIO $ readIORef ref
-                let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate in case s of
-                  --TODO: добавить обработку ошибки
-                  Right rs -> do
-                    tmp <- liftIO $ writeIORef ref (snd rs)
-                    return $ Ans "success"
+                let oldState = iostate
+                let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate
+                case s of
+                    Right rs -> do
+                      liftIO $ writeIORef ref (snd rs)
+                      let newState = snd rs
+                      if oldState == newState
+                        then return $ Ans "fail"
+                        else return $ Ans "success"
+
+              -- processWithdraw ref acc amount = do
+              --   iostate <- liftIO $ readIORef ref
+              --   let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate in case s of
+              --     --TODO: добавить обработку ошибки
+              --     Right rs -> do
+              --       tmp <- liftIO $ writeIORef ref (snd rs)
+              --       return $ Ans "success"
               
               processDelete ref acc = do 
                 iostate <- liftIO $ readIORef ref
+                let oldState = iostate
                 let s = runStateT (runPureBank $ deleteAccountHttp acc) iostate in case s of
-                  --TODO: добавить обработку ошибки
                   Right rs -> do
-                    tmp <- liftIO $ writeIORef ref (snd rs)
-                    return $ Ans "success"
-              
+                    liftIO $ writeIORef ref (snd rs)
+                    let newState = snd rs
+                    if oldState == newState
+                      then return $ Ans "fail"
+                      else return $ Ans "success"
+                      
               processTransfer ref from amount to = do
                 iostate <- liftIO $ readIORef ref
+                let oldState = iostate
                 let s = runStateT (runPureBank $ transferHttp from amount to) iostate in case s of
                   --TODO: добавить обработку ошибки
                   Right rs -> do
-                    tmp <- liftIO $ writeIORef ref (snd rs)
-                    return $ Ans "success"
+                    liftIO $ writeIORef ref (snd rs)
+                    let newState = snd rs
+                    if oldState == newState
+                      then return $ Ans "fail"
+                      else return $ Ans "success"
 
 
 
