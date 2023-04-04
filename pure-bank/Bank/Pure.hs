@@ -7,7 +7,7 @@ import Bank (MonadBank(..), transfer)
 import Bank.Error
 import Control.Monad.State
 import Control.Monad.Trans.Except
-import Data.Accounts (Account, Accounts, modifyBalance, newAccount, balance)
+import Data.Accounts (Account, Accounts, Result, modifyBalance, newAccount, balance)
 import Data.Monoid (Sum(..))
 import qualified Data.IntMap.Strict as M
 
@@ -19,10 +19,7 @@ import qualified Data.IntMap.Strict as M
 -- | Monad for pure bank computations. @b@ is a balance type,
 -- @a@ is a computation result type.
 
-type PureBankT b a = ExceptT BankError (State (Accounts (Sum b))) a
-
-newtype PureBank b a = PureBank {runPureBank :: PureBankT b a}
-
+newtype PureBank b a = PureBank {runPureBank :: StateT (Accounts b) Result a}
 
 -- (0.5 балла) сделайте @PureBank b@ монадой. Если в предыдущем задании Вы
 -- использовали трансформеры, рекомендуется воспользоваться командой
@@ -50,28 +47,67 @@ instance (Num b, Ord b) => MonadBank Account (Sum b) (PureBank b) where
     put $ M.insert acc 100 state
     return acc
 
+
   balance acc = PureBank $ do
     state <- get
-    case Data.Accounts.balance acc state of
-      Left err -> throwE err
-      Right b -> return b
+    let bal = Data.Accounts.balance acc state
+    case bal of
+      Left err -> return 0
+      Right a -> return $ Sum a
 
-  deposit acc amount = PureBank $ do
+  deposit acc (Sum amount) = PureBank $ do
     state <- get
-    case Data.Accounts.modifyBalance acc (\x -> Right $ x <> amount) state of
-      Left err -> throwE err
-      Right s -> put s
+    case Data.Accounts.modifyBalance acc (\x -> Right $ x + amount) state of
+      Left err -> return ()
+      Right s -> do
+        put s
+        return ()
 
-  withdraw acc amount = PureBank $ do
+  withdraw acc (Sum amount) = PureBank $ do
     state <- get
-    case Data.Accounts.modifyBalance acc (\x -> if x >= amount then Right $ x - amount else Left NotEnoughMoney) state of
-      Left err -> throwE err
-      Right s -> put s
+    case Data.Accounts.modifyBalance acc (\x -> Right $ x - amount) state of
+      Left err -> return ()
+      Right s -> do
+        put s
+        return ()
 
   deleteAccount acc = PureBank $ do
     state <- get
-    let newState = M.delete acc state
-    if state == newState
-      then throwE CantFindAccount
-      else put newState
+    let s = M.delete acc state
+    put s
+
+-- helpers
+type HttpBank = PureBank Int
+
+newAccountHttp :: HttpBank (Account)
+newAccountHttp =
+  Bank.newAccount
+
+balanceHttp :: Account -> HttpBank (Sum Int)
+balanceHttp acc = do
+  Bank.balance acc
+
+depositHttp :: Account -> (Sum Int) -> HttpBank ()
+depositHttp acc amount = do
+  Bank.deposit acc amount
+
+withdrawHttp :: Account -> (Sum Int) -> HttpBank ()
+withdrawHttp acc amount = do
+  Bank.withdraw acc amount
+
+deleteAccountHttp :: Account -> HttpBank ()
+deleteAccountHttp acc = do
+  Bank.deleteAccount acc
+
+
+--testAcc = do
+--  let w = runStateT (runPureBank getNewAcc) M.empty in case w of
+--    Left err -> print "lox"
+--    Right w2 -> let w3 = runStateT (runPureBank (deposit (fst w2) 200)) (snd w2) in case w3 of
+--      Left err -> print "lox"
+--      Right w4 -> let w5 = evalStateT (runPureBank (getBal (fst w2))) (snd w4) in case w5 of
+--        Left err -> print "lox"
+--        Right w6 -> print $ getSum w6
+
+
 
