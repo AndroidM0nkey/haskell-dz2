@@ -47,7 +47,6 @@ instance (Num b, Ord b) => MonadBank Account (Sum b) (PureBank b) where
     put $ M.insert acc 100 state
     return acc
 
-
   balance acc = PureBank $ do
     state <- get
     let bal = Data.Accounts.balance acc state
@@ -98,6 +97,10 @@ withdrawHttp acc amount = do
 deleteAccountHttp :: Account -> HttpBank ()
 deleteAccountHttp acc = do
   Bank.deleteAccount acc
+
+transferHttp :: Account ->  (Sum Int) -> Account -> HttpBank ()
+transferHttp from amount to = do
+  Bank.transfer from amount to
 
 --testAcc = do
 --  let w = runStateT (runPureBank newAccountHttp) M.empty in case w of

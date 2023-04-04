@@ -27,6 +27,8 @@ type UserAPI1 = "new_account" :> Get '[JSON] Acc
            :<|> "balance" :> Capture "acc" Int :> Get '[JSON] Bal
            :<|> "deposit" :> Capture "acc" Int :> Capture "amount" (Sum Int) :> Get '[JSON] Ans
            :<|> "withdraw" :> Capture "acc" Int :> Capture "amount" (Sum Int) :> Get '[JSON] Ans
+           :<|> "delete" :> Capture "acc" Int :> Get '[JSON] Ans
+           :<|> "transfer" :> Capture "from" Int :> Capture "amount" (Sum Int) :> Capture "to" Int :> Get '[JSON] Ans
 
 
 
@@ -53,6 +55,8 @@ server1 ref = processNewAccount ref
          :<|> processBalance ref
          :<|> processDeposit ref
          :<|> processWithdraw ref
+         :<|> processDelete ref
+         :<|> processTransfer ref
         where processNewAccount ref = do
                 iostate <- liftIO $ readIORef ref
                 let s = evalStateT (runPureBank newAccountHttp) iostate in case s of
@@ -80,6 +84,20 @@ server1 ref = processNewAccount ref
               processWithdraw ref acc amount = do
                 iostate <- liftIO $ readIORef ref
                 let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate in case s of
+                  --TODO: добавить обработку ошибки
+                  Right rs -> do
+                    tmp <- liftIO $ writeIORef ref (snd rs)
+                    return $ Ans "success"
+              
+              processDelete ref acc = do 
+                iostate <- liftIO $ readIORef ref
+                let s = evalStateT (runPureBank $ deleteAccountHttp acc) iostate in case s of
+                  --TODO: добавить обработку ошибки
+                  Right rs -> return $ Ans "success"
+              
+              processTransfer ref from amount to = do
+                iostate <- liftIO $ readIORef ref
+                let s = runStateT (runPureBank $ transferHttp from amount to) iostate in case s of
                   --TODO: добавить обработку ошибки
                   Right rs -> do
                     tmp <- liftIO $ writeIORef ref (snd rs)
