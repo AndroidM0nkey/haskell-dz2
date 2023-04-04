@@ -99,13 +99,12 @@ deleteAccountHttp :: Account -> HttpBank ()
 deleteAccountHttp acc = do
   Bank.deleteAccount acc
 
-
 --testAcc = do
---  let w = runStateT (runPureBank getNewAcc) M.empty in case w of
+--  let w = runStateT (runPureBank newAccountHttp) M.empty in case w of
 --    Left err -> print "lox"
---    Right w2 -> let w3 = runStateT (runPureBank (deposit (fst w2) 200)) (snd w2) in case w3 of
+--    Right w2 -> let w3 = runStateT (runPureBank (depositHttp (fst w2) 200)) (snd w2) in case w3 of
 --      Left err -> print "lox"
---      Right w4 -> let w5 = evalStateT (runPureBank (getBal (fst w2))) (snd w4) in case w5 of
+--      Right w4 -> let w5 = evalStateT (runPureBank (balanceHttp (fst w2))) (snd w4) in case w5 of
 --        Left err -> print "lox"
 --        Right w6 -> print $ getSum w6
 
