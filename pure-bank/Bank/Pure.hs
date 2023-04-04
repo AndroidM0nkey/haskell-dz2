@@ -11,20 +11,10 @@ import Data.Accounts (Account, Accounts, Result, modifyBalance, newAccount, bala
 import Data.Monoid (Sum(..))
 import qualified Data.IntMap.Strict as M
 
-
--- (0.5 балла) исправьте тип поля @runPureBank@, чтобы для @PureBank@ можно было
--- выписать инстанс @MonadBank@, для которого выполнены сформулированные Вами
--- законы. Рекомендуется использовать трансформеры монад.
-
 -- | Monad for pure bank computations. @b@ is a balance type,
 -- @a@ is a computation result type.
 
 newtype PureBank b a = PureBank {runPureBank :: StateT (Accounts b) Result a}
-
--- (0.5 балла) сделайте @PureBank b@ монадой. Если в предыдущем задании Вы
--- использовали трансформеры, рекомендуется воспользоваться командой
--- @deriving newtype@.
-
 instance Functor (PureBank b) where
   fmap f (PureBank bank) = PureBank $ fmap f bank
 
@@ -34,10 +24,6 @@ instance Applicative (PureBank b) where
 
 instance Monad (PureBank b) where
   (PureBank m) >>= k = PureBank $ m >>= runPureBank . k
-
--- (1 балл) сделайте @PureBank b@ представителем класса @MonadBank@. Заголовок
--- инстанса менять запрещается. Рекомендуется использовать вспомогательные
--- чистые функции, реализованные ранее.
 
 instance (Num b, Ord b) => MonadBank Account (Sum b) (PureBank b) where
 
@@ -101,15 +87,3 @@ deleteAccountHttp acc = do
 transferHttp :: Account ->  (Sum Int) -> Account -> HttpBank ()
 transferHttp from amount to = do
   Bank.transfer from amount to
-
---testAcc = do
---  let w = runStateT (runPureBank newAccountHttp) M.empty in case w of
---    Left err -> print "lox"
---    Right w2 -> let w3 = runStateT (runPureBank (depositHttp (fst w2) 200)) (snd w2) in case w3 of
---      Left err -> print "lox"
---      Right w4 -> let w5 = evalStateT (runPureBank (balanceHttp (fst w2))) (snd w4) in case w5 of
---        Left err -> print "lox"
---        Right w6 -> print $ getSum w6
-
-
-

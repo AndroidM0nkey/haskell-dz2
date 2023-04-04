@@ -91,9 +91,11 @@ server1 ref = processNewAccount ref
               
               processDelete ref acc = do 
                 iostate <- liftIO $ readIORef ref
-                let s = evalStateT (runPureBank $ deleteAccountHttp acc) iostate in case s of
+                let s = runStateT (runPureBank $ deleteAccountHttp acc) iostate in case s of
                   --TODO: добавить обработку ошибки
-                  Right rs -> return $ Ans "success"
+                  Right rs -> do
+                    tmp <- liftIO $ writeIORef ref (snd rs)
+                    return $ Ans "success"
               
               processTransfer ref from amount to = do
                 iostate <- liftIO $ readIORef ref
