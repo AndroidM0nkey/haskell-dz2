@@ -31,7 +31,6 @@ type UserAPI1 = "new_account" :> Get '[JSON] Acc
            :<|> "transfer" :> Capture "from" Int :> Capture "amount" (Sum Int) :> Capture "to" Int :> Get '[JSON] Ans
 
 
-
 -- JSON that will be used in answer
 data Acc = Acc
   { account_id :: Int
@@ -96,14 +95,6 @@ server1 ref = processNewAccount ref
                       if oldState == newState
                         then return $ Ans "fail"
                         else return $ Ans "success"
-
-              -- processWithdraw ref acc amount = do
-              --   iostate <- liftIO $ readIORef ref
-              --   let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate in case s of
-              --     --TODO: добавить обработку ошибки
-              --     Right rs -> do
-              --       tmp <- liftIO $ writeIORef ref (snd rs)
-              --       return $ Ans "success"
               
               processDelete ref acc = do 
                 iostate <- liftIO $ readIORef ref

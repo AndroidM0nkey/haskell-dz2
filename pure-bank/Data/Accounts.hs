@@ -24,6 +24,7 @@ balance acc state = let x = M.lookup acc state in case x of
                                           Nothing -> Left CantFindAccount
 
 modifyBalance ::
+  (Num b, Ord b) =>
   -- | Account to modify balance for
   Account ->
   -- | Action to execute on its balance
@@ -32,8 +33,17 @@ modifyBalance ::
   Accounts b ->
   -- | Result of action
   Result (Accounts b)
-modifyBalance acc act state = let x = M.lookup acc state in case x of
-                                          Just val -> let k = act val in case k of
-                                                                              Left err -> Left err
-                                                                              Right a -> Right $ M.adjust (\x -> a) acc state
-                                          Nothing -> Left CantFindAccount
+modifyBalance acc act state =
+  let x = M.lookup acc state
+   in case x of
+        Just val ->
+          let k = act val
+           in case k of
+                Left err -> Left err
+                Right a ->
+                  let newBalance = a
+                      balanceCheck = newBalance >= 0
+                   in if balanceCheck
+                        then Right $ M.adjust (\x -> a) acc state
+                        else Left CantModifyBalance
+        Nothing -> Left CantFindAccount

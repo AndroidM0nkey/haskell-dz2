@@ -80,6 +80,17 @@ class (Monad m, Monoid b, Eq b, Ord b) => MonadBank a b m | m -> a, m -> b where
 
 transfer :: MonadBank a b m => a -> b -> a -> m ()
 transfer from amount to = do
+  before_1 <- balance from
   withdraw from amount
-  deposit to amount
+  after_1 <- balance to
+  if before_1 == after_1
+    then return ()
+    else do
+      before_2 <- balance to
+      deposit to amount
+      after_2 <- balance to
+      if before_2 == after_2
+        then deposit from amount
+        else return ()
+      
 
