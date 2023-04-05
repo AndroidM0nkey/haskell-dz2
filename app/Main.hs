@@ -55,6 +55,7 @@ data Ans = Ans
 
 instance ToJSON Ans
 
+-- server1 :: TVar IntMap Int Server 
 server1 ref = processNewAccount ref
          :<|> processBalance ref
          :<|> processDeposit ref
@@ -64,7 +65,6 @@ server1 ref = processNewAccount ref
         where processNewAccount ref = liftIO $ atomically $ do
                 iostate <- readTVar ref
                 let s = evalStateT (runPureBank newAccountHttp) iostate in case s of
-                  -- эта ручка всегда возвращает что-то валидное
                   Right s2 -> do
                     let rs = runStateT (runPureBank newAccountHttp) iostate in case rs of
                       Right rs2 -> do
@@ -74,7 +74,6 @@ server1 ref = processNewAccount ref
               processBalance ref acc = liftIO $ atomically $ do
                 iostate <- readTVar ref
                 let s = evalStateT (runPureBank $ balanceHttp acc) iostate in case s of
-                  --TODO: добавить обработку ошибки
                   Right rs -> return $ Bal (getSum rs)
 
               processDeposit ref acc amount = liftIO $ atomically $ do
@@ -86,7 +85,8 @@ server1 ref = processNewAccount ref
                       writeTVar ref (snd rs)
                       let newState = snd rs
                       if oldState == newState
-                        then return $ Ans "fail"
+                        -- then return $ Ans "fail"
+                        then throwSTM err400
                         else return $ Ans "success"
 
               processWithdraw ref acc amount = liftIO $ atomically $ do
@@ -98,16 +98,8 @@ server1 ref = processNewAccount ref
                       writeTVar ref (snd rs)
                       let newState = snd rs
                       if oldState == newState
-                        then return $ Ans "fail"
+                        then throwSTM err400
                         else return $ Ans "success"
-
-              -- processWithdraw ref acc amount = do
-              --   iostate <- readTVar ref
-              --   let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate in case s of
-              --     --TODO: добавить обработку ошибки
-              --     Right rs -> do
-              --       tmp <- writeTVar ref (snd rs)
-              --       return $ Ans "success"
 
               processDelete ref acc = liftIO $ atomically $ do
                 iostate <- readTVar ref
@@ -117,19 +109,18 @@ server1 ref = processNewAccount ref
                     writeTVar ref (snd rs)
                     let newState = snd rs
                     if oldState == newState
-                      then return $ Ans "fail"
+                      then throwSTM err400
                       else return $ Ans "success"
 
               processTransfer ref from amount to = liftIO $ atomically $ do
                 iostate <- readTVar ref
                 let oldState = iostate
                 let s = runStateT (runPureBank $ transferHttp from amount to) iostate in case s of
-                  --TODO: добавить обработку ошибки
                   Right rs -> do
                     writeTVar ref (snd rs)
                     let newState = snd rs
                     if oldState == newState
-                      then return $ Ans "fail"
+                      then throwSTM err400
                       else return $ Ans "success"
 
 
