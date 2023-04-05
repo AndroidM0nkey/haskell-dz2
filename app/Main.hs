@@ -21,19 +21,21 @@ import Control.Monad.IO.Class
 import Control.Monad.State
 import Data.Monoid (Sum(..))
 
--- stm
+-- concurrency
 import Control.Monad
 import Control.Concurrent
 import Control.Concurrent.STM
+import Control.Concurrent.MVar
+import GHC.Conc
 
 
 -- API type
 type UserAPI1 = "new_account" :> Get '[JSON] Acc
            :<|> "balance" :> Capture "acc" Int :> Get '[JSON] Bal
-           :<|> "deposit" :> Capture "acc" Int :> Capture "amount" (Sum Int) :> Get '[JSON] Ans
-           :<|> "withdraw" :> Capture "acc" Int :> Capture "amount" (Sum Int) :> Get '[JSON] Ans
-           :<|> "delete" :> Capture "acc" Int :> Get '[JSON] Ans
-           :<|> "transfer" :> Capture "from" Int :> Capture "amount" (Sum Int) :> Capture "to" Int :> Get '[JSON] Ans
+           :<|> "deposit" :> Capture "acc" Int :> Capture "amount" Int :> Get '[JSON] Ans
+--           :<|> "withdraw" :> Capture "acc" Int :> Capture "amount" (Sum Int) :> Get '[JSON] Ans
+--           :<|> "delete" :> Capture "acc" Int :> Get '[JSON] Ans
+--           :<|> "transfer" :> Capture "from" Int :> Capture "amount" (Sum Int) :> Capture "to" Int :> Get '[JSON] Ans
 
 
 -- JSON that will be used in answer
@@ -55,73 +57,89 @@ data Ans = Ans
 
 instance ToJSON Ans
 
--- server1 :: TVar IntMap Int Server 
 server1 ref = processNewAccount ref
          :<|> processBalance ref
          :<|> processDeposit ref
-         :<|> processWithdraw ref
-         :<|> processDelete ref
-         :<|> processTransfer ref
+        -- :<|> processWithdraw ref
+        -- :<|> processDelete ref
+        -- :<|> processTransfer ref
         where processNewAccount ref = liftIO $ atomically $ do
-                iostate <- readTVar ref
-                let s = evalStateT (runPureBank newAccountHttp) iostate in case s of
-                  Right s2 -> do
-                    let rs = runStateT (runPureBank newAccountHttp) iostate in case rs of
-                      Right rs2 -> do
-                        tmp <- writeTVar ref (snd rs2)
-                        return $ Acc s2
+                iostate <- unsafeIOToSTM $ takeMVar ref
+                let ind = M.size iostate
+                newT <- newTVar 100
+                unsafeIOToSTM $ putMVar ref (M.insert ind newT iostate)
+                return $ Acc ind
 
               processBalance ref acc = liftIO $ atomically $ do
-                iostate <- readTVar ref
-                let s = evalStateT (runPureBank $ balanceHttp acc) iostate in case s of
-                  Right rs -> return $ Bal (getSum rs)
+                iostate <- unsafeIOToSTM $ readMVar ref
+                let bal = M.lookup acc iostate in case bal of
+                                        Just a -> do
+                                          realbal <- readTVar a
+                                          return $ Bal realbal
+                                        Nothing -> throwSTM err404
 
               processDeposit ref acc amount = liftIO $ atomically $ do
-                iostate <- readTVar ref
-                let oldState = iostate
-                let s = runStateT (runPureBank $ depositHttp acc amount) iostate
-                case s of
-                    Right rs -> do
-                      writeTVar ref (snd rs)
-                      let newState = snd rs
-                      if oldState == newState
-                        -- then return $ Ans "fail"
-                        then throwSTM err400
-                        else return $ Ans "success"
+                iostate <- unsafeIOToSTM $ takeMVar ref
+                let bal = M.lookup acc iostate in case bal of
+                                        Just a -> do
+                                          realbal <- readTVar a
+                                          writeTVar a (realbal + amount)
+                                          return $ Ans "success"
+                                        Nothing -> throwSTM err404
 
-              processWithdraw ref acc amount = liftIO $ atomically $ do
-                iostate <- readTVar ref
-                let oldState = iostate
-                let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate
-                case s of
-                    Right rs -> do
-                      writeTVar ref (snd rs)
-                      let newState = snd rs
-                      if oldState == newState
-                        then throwSTM err400
-                        else return $ Ans "success"
 
-              processDelete ref acc = liftIO $ atomically $ do
-                iostate <- readTVar ref
-                let oldState = iostate
-                let s = runStateT (runPureBank $ deleteAccountHttp acc) iostate in case s of
-                  Right rs -> do
-                    writeTVar ref (snd rs)
-                    let newState = snd rs
-                    if oldState == newState
-                      then throwSTM err400
-                      else return $ Ans "success"
 
-              processTransfer ref from amount to = liftIO $ atomically $ do
-                iostate <- readTVar ref
-                let oldState = iostate
-                let s = runStateT (runPureBank $ transferHttp from amount to) iostate in case s of
-                  Right rs -> do
-                    writeTVar ref (snd rs)
-                    let newState = snd rs
-                    if oldState == newState
-                      then throwSTM err400
-                      else return $ Ans "success"
+        --      processBalance ref acc = liftIO $ atomically $ do
+        --        iostate <- readTVar ref
+        --        let s = evalStateT (runPureBank $ balanceHttp acc) iostate in case s of
+        --          Right rs -> return $ Bal (getSum rs)
+--
+        --      processDeposit ref acc amount = liftIO $ atomically $ do
+        --        iostate <- readTVar ref
+        --        let oldState = iostate
+        --        let s = runStateT (runPureBank $ depositHttp acc amount) iostate
+        --        case s of
+        --            Right rs -> do
+        --              writeTVar ref (snd rs)
+        --              let newState = snd rs
+        --              if oldState == newState
+        --                -- then return $ Ans "fail"
+        --                then throwSTM err400
+        --                else return $ Ans "success"
+--
+        --      processWithdraw ref acc amount = liftIO $ atomically $ do
+        --        iostate <- readTVar ref
+        --        let oldState = iostate
+        --        let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate
+        --        case s of
+        --            Right rs -> do
+        --              writeTVar ref (snd rs)
+        --              let newState = snd rs
+        --              if oldState == newState
+        --                then throwSTM err400
+        --                else return $ Ans "success"
+--
+        --      processDelete ref acc = liftIO $ atomically $ do
+        --        iostate <- readTVar ref
+        --        let oldState = iostate
+        --        let s = runStateT (runPureBank $ deleteAccountHttp acc) iostate in case s of
+        --          Right rs -> do
+        --            writeTVar ref (snd rs)
+        --            let newState = snd rs
+        --            if oldState == newState
+        --              then throwSTM err400
+        --              else return $ Ans "success"
+--
+        --      processTransfer ref from amount to = liftIO $ atomically $ do
+        --        iostate <- readTVar ref
+        --        let oldState = iostate
+        --        let s = runStateT (runPureBank $ transferHttp from amount to) iostate in case s of
+        --          Right rs -> do
+        --            writeTVar ref (snd rs)
+        --            let newState = snd rs
+        --            if oldState == newState
+        --              then throwSTM err400
+        --              else return $ Ans "success"
 
 
 
@@ -132,5 +150,5 @@ app1 ref = serve userAPI (server1 ref)
 
 main :: IO ()
 main = do
-    ref <- atomically $ newTVar M.empty
+    ref <- newMVar M.empty
     run 8081 (app1 ref)
