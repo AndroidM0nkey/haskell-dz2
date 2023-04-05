@@ -6,7 +6,6 @@ module Bank.Pure where
 import Bank (MonadBank(..), transfer)
 import Bank.Error
 import Control.Monad.State
-import Control.Monad.Trans.Except
 import Data.Accounts (Account, Accounts, Result, modifyBalance, newAccount, balance)
 import Data.Monoid (Sum(..))
 import qualified Data.IntMap.Strict as M

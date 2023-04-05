@@ -11,21 +11,15 @@ import Bank.Pure
 import Servant
 import Data.Aeson.Types
 import Servant.API.Generic
-import Network.Wai
 import Network.Wai.Handler.Warp
 
 -- general libs
 import qualified Data.IntMap.Strict as M
-import Data.IORef
-import Control.Monad.IO.Class
 import Control.Monad.State
 import Data.Monoid (Sum(..))
 
 -- stm
-import Control.Monad
-import Control.Concurrent
 import Control.Concurrent.STM
-
 
 -- API type
 type UserAPI1 = "new_account" :> Get '[JSON] Acc
@@ -55,7 +49,6 @@ data Ans = Ans
 
 instance ToJSON Ans
 
--- server1 :: TVar IntMap Int Server 
 server1 ref = processNewAccount ref
          :<|> processBalance ref
          :<|> processDeposit ref
@@ -85,21 +78,27 @@ server1 ref = processNewAccount ref
                       writeTVar ref (snd rs)
                       let newState = snd rs
                       if oldState == newState
-                        -- then return $ Ans "fail"
                         then throwSTM err400
                         else return $ Ans "success"
 
               processWithdraw ref acc amount = liftIO $ atomically $ do
                 iostate <- readTVar ref
-                let oldState = iostate
-                let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate
-                case s of
-                    Right rs -> do
-                      writeTVar ref (snd rs)
-                      let newState = snd rs
-                      if oldState == newState
-                        then throwSTM err400
-                        else return $ Ans "success"
+
+                -- не будем выполнять транзакцию пока она не станет денежно валидна
+                let bl = evalStateT (runPureBank $ balanceHttp acc) iostate in case bl of
+                  Right rs -> do
+                    if rs < amount
+                      then retry
+                      else do
+                          let oldState = iostate
+                          let s = runStateT (runPureBank $ withdrawHttp acc amount) iostate
+                          case s of
+                              Right rs -> do
+                                writeTVar ref (snd rs)
+                                let newState = snd rs
+                                if oldState == newState
+                                  then throwSTM err400
+                                  else return $ Ans "success"
 
               processDelete ref acc = liftIO $ atomically $ do
                 iostate <- readTVar ref
@@ -114,15 +113,21 @@ server1 ref = processNewAccount ref
 
               processTransfer ref from amount to = liftIO $ atomically $ do
                 iostate <- readTVar ref
-                let oldState = iostate
-                let s = runStateT (runPureBank $ transferHttp from amount to) iostate in case s of
-                  Right rs -> do
-                    writeTVar ref (snd rs)
-                    let newState = snd rs
-                    if oldState == newState
-                      then throwSTM err400
-                      else return $ Ans "success"
 
+                -- не будем выполнять транзакцию пока она не станет денежно валидна
+                let bl = evalStateT (runPureBank $ balanceHttp from) iostate in case bl of
+                  Right rs -> do
+                    if rs < amount
+                      then retry
+                      else do
+                        let oldState = iostate
+                        let s = runStateT (runPureBank $ transferHttp from amount to) iostate in case s of
+                          Right rs -> do
+                            writeTVar ref (snd rs)
+                            let newState = snd rs
+                            if oldState == newState
+                              then throwSTM err400
+                              else return $ Ans "success"
 
 
 userAPI :: Proxy UserAPI1
